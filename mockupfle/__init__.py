@@ -1,6 +1,8 @@
 import logging
+import os
 import sys
 
+from daemon import (DaemonContext, pidfile)
 from bson import Binary
 from mockupdb import interactive_server
 
@@ -26,7 +28,7 @@ def mark_fields(r):
     r.ok(data=data)
 
 
-def main():
+def start_server():
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     uds_path = '/tmp/mongofle.sock'
     server = interactive_server(uds_path=uds_path, name='mockupfle')
@@ -55,3 +57,27 @@ def main():
     finally:
         logging.info('Shutting down')
         server.stop()
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--daemonize":
+        base_dir = "/usr/local"
+        # PID lock file acts as a mutex, only allowing one daemon to run.
+        pid_file = pidfile.TimeoutPIDLockFile(base_dir + "/var/run/mockupfle.pid")
+        log_file = open(base_dir + "/var/log/mockupfle.log", "w")
+
+        if pid_file.is_locked():
+            with open(pid_file.path, "r") as f:
+                print("Daemon already running with PID=%s" % f.read())
+                sys.exit(0)
+
+        print("Running as a background process")
+        print("PID=%s" % os.getpid())
+        print("Logging to %s" % log_file.name)
+        with DaemonContext(
+                pidfile=pid_file,
+                stdout=log_file,
+                stderr=log_file):
+            start_server()
+    else:
+        start_server()

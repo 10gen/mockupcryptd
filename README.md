@@ -34,3 +34,12 @@ hello from mockupfle!
 
 Stop the server with Ctrl-C from the terminal where you started ``mockupfle``,
 or with ``db.shutdownServer()`` from the mongo shell.
+
+### Run as a Daemon
+Runs mockupfle in the background, and only permits one mockupfle to run at once.
+```
+$ mockupfle --daemonize
+Running as a background process
+PID=51701
+Logging to /usr/local/var/log/mockupfle.log
+```
