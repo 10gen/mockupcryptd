@@ -30,8 +30,8 @@ def mark_fields(r):
 
 def start_server():
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    uds_path = '/tmp/mongofle.sock'
-    server = interactive_server(uds_path=uds_path, name='mockupfle')
+    uds_path = '/tmp/mongocryptd.sock'
+    server = interactive_server(uds_path=uds_path, name='mockupcryptd')
     server.run()
     print('Listening with domain socket %s' % (uds_path,))
     print('URI is %s' % (server.uri,))
@@ -63,8 +63,9 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--daemonize":
         base_dir = "/usr/local"
         # PID lock file acts as a mutex, only allowing one daemon to run.
-        pid_file = pidfile.TimeoutPIDLockFile(base_dir + "/var/run/mockupfle.pid")
-        log_file = open(base_dir + "/var/log/mockupfle.log", "w")
+        pid_file = pidfile.TimeoutPIDLockFile(
+            base_dir + "/var/run/mockupcryptd.pid")
+        log_file = open(base_dir + "/var/log/mockupcryptd.log", "w")
 
         if pid_file.is_locked():
             with open(pid_file.path, "r") as f:
