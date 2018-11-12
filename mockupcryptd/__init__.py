@@ -5,6 +5,32 @@ import sys
 from daemon import (DaemonContext, pidfile)
 from bson import Binary
 from mockupdb import interactive_server
+import bson
+
+
+def mark_recurse (doc):
+    if isinstance (doc, dict):
+        for key in doc:
+            if key == "encryptMe":
+                data = bson.BSON.encode({
+                    "k": 123,
+                    "v": doc[key]
+                })
+                bin = Binary(data, subtype=7)
+                doc[key] = bin
+
+            elif isinstance(doc[key], dict):
+                mark_recurse(doc[key])
+            elif isinstance (doc[key], list):
+                mark_recurse(doc[key])
+    elif isinstance (doc, list):
+        for el in doc:
+            if isinstance(el, dict):
+                mark_recurse(el)
+            elif isinstance (el, list):
+                mark_recurse(el)
+    else:
+        raise Exception("Must recurse on list or dict")
 
 
 def mark_fields(r):
@@ -20,9 +46,7 @@ def mark_fields(r):
         return
 
     for doc in data:
-        if 'encryptMe' in doc:
-            # Let's say subtype 7 means "marked for encryption."
-            doc['encryptMe'] = Binary(b'', subtype=7)
+        mark_recurse (doc)
 
     logging.info('markFields with {n} documents'.format(n=len(data)))
     r.ok(data=data)
