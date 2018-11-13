@@ -8,8 +8,8 @@ from mockupdb import interactive_server
 import bson
 
 
-def mark_recurse (doc):
-    if isinstance (doc, dict):
+def mark_recurse(doc):
+    if isinstance(doc, dict):
         for key in doc:
             if key == "encryptMe":
                 data = bson.BSON.encode({
@@ -21,13 +21,13 @@ def mark_recurse (doc):
 
             elif isinstance(doc[key], dict):
                 mark_recurse(doc[key])
-            elif isinstance (doc[key], list):
+            elif isinstance(doc[key], list):
                 mark_recurse(doc[key])
-    elif isinstance (doc, list):
+    elif isinstance(doc, list):
         for el in doc:
             if isinstance(el, dict):
                 mark_recurse(el)
-            elif isinstance (el, list):
+            elif isinstance(el, list):
                 mark_recurse(el)
     else:
         raise Exception("Must recurse on list or dict")
@@ -46,7 +46,7 @@ def mark_fields(r):
         return
 
     for doc in data:
-        mark_recurse (doc)
+        mark_recurse(doc)
 
     logging.info('markFields with {n} documents'.format(n=len(data)))
     r.ok(data=data)
