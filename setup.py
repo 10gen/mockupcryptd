@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/mongodb-labs/mockupcryptd",
     packages=setuptools.find_packages(),
-    install_requires=['mockupdb', 'pymongo', 'python-daemon'],
+    install_requires=['mockupdb', 'python-daemon'],
     entry_points={
         'console_scripts': ['mockupcryptd=mockupcryptd:main'],
     },

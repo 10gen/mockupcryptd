@@ -3,22 +3,20 @@ import os
 import sys
 
 from daemon import (DaemonContext, pidfile)
-from bson import Binary
 from mockupdb import interactive_server
-import bson
+from mockupdb import _bson as mockup_bson
 
 
 def mark_recurse(doc):
     if isinstance(doc, dict):
         for key in doc:
             if key == "encryptMe":
-                data = bson.BSON.encode({
+                data = mockup_bson.BSON.encode({
                     "k": 123,
                     "v": doc[key]
                 })
-                bin = Binary(data, subtype=7)
-                doc[key] = bin
 
+                doc[key] = mockup_bson.Binary(data, subtype=7)
             elif isinstance(doc[key], dict):
                 mark_recurse(doc[key])
             elif isinstance(doc[key], list):
