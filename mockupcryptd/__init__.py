@@ -4,19 +4,23 @@ import sys
 
 from daemon import (DaemonContext, pidfile)
 from mockupdb import interactive_server
-from mockupdb import _bson as mockup_bson
+
+try:
+    from mockupdb import _bson as bson
+except ImportError:
+    from pymongo import bson
 
 
 def mark_recurse(doc):
     if isinstance(doc, dict):
         for key in doc:
             if key == "encryptMe":
-                data = mockup_bson.BSON.encode({
+                data = bson.BSON.encode({
                     "k": 123,
                     "v": doc[key]
                 })
 
-                doc[key] = mockup_bson.Binary(data, subtype=7)
+                doc[key] = bson.Binary(data, subtype=7)
             elif isinstance(doc[key], dict):
                 mark_recurse(doc[key])
             elif isinstance(doc[key], list):
