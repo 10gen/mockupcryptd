@@ -53,9 +53,9 @@ def mark_recurse (doc, encrypt_map, path_prefix=""):
                     marking["k"] = encrypt_map[path]["keyAltName"]
 
                 if "iv" in encrypt_spec:
-                    marking["i"] = encrypt_spec["iv"]
+                    marking["iv"] = encrypt_spec["iv"]
 
-                data = bson.BSON.encode(marking)
+                data = bson.BSON.encode(marking, codec_options=bson.CodecOptions(uuid_representation=bson.binary.UUID_SUBTYPE))
                 doc[key] = bson.Binary(data, subtype=6)
 
             elif isinstance(doc[key], dict):
@@ -145,7 +145,7 @@ def test_schema_parsing():
                         "keyId": {
                             "$binary": {
                                 "base64": "1+niXaxyRL6AB6xRzUp/Ew==",
-                                "subType": "03"
+                                "subType": "04"
                             }
                         },
                         "keyVaultURI": "mongodb://localhost:27017/admin"
