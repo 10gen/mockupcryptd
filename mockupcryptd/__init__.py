@@ -38,8 +38,8 @@ def mark_recurse (doc, encrypt_map, path_prefix=""):
         for key in doc:
             path = full_path(path_prefix, key)
             print("processing {}".format(path))
-            print encrypt_map
             if path in encrypt_map:
+                print("  ENCRYPT")
                 # should be encrypted.
                 encrypt_spec = encrypt_map[path]
                 marking = {
@@ -89,6 +89,7 @@ def mark_fields(r):
     try:
         encrypt_map = {}
         build_encrypt_map(encrypt_map, schema)
+        print "Encrypt map:", encrypt_map
 
         for doc in data:
             mark_recurse (doc, encrypt_map)
