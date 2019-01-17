@@ -1,0 +1,3 @@
+import mockupcryptd
+
+mockupcryptd.main()

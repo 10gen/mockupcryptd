@@ -89,7 +89,7 @@ def mark_fields(r):
     try:
         encrypt_map = {}
         build_encrypt_map(encrypt_map, schema)
-        print "Encrypt map:", encrypt_map
+        print("Encrypt map:", encrypt_map)
 
         for doc in data:
             mark_recurse (doc, encrypt_map)
