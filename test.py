@@ -1,3 +1,3 @@
-import mockupcryptd
+import test.test_mockupcryptd
 
-mockupcryptd.main()
+test.test_mockupcryptd.main()
