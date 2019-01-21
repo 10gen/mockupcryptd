@@ -24,13 +24,17 @@ def test_schema_parsing():
 
     }
     encrypt_map = {}
-    import sys
-    print("sys.path=")
-    print(sys.path)
     mockupcryptd.build_encrypt_map(encrypt_map, schema)
     assert "ssn" in encrypt_map
     assert encrypt_map["ssn"] == schema["properties"]["ssn"]["encrypt"]
 
+def test_marking():
+    mockupcryptd.version = "spec"
+    marking = mockupcryptd.make_marking({"algorithm": "det", "keyVaultAlias": "kva", "iv": "an iv", "keyId": "my key id"}, "test")
+    parsed = mockupcryptd.parse_marking(marking)
+    assert parsed == {'v': 'test', 'a': 'det', 'va': 'kva', 'iv': 'an iv', 'ki': 'my key id'}
+
 def main():
     test_schema_parsing()
-    print("Tests pass")
+    test_marking()
+    print("All tests pass")

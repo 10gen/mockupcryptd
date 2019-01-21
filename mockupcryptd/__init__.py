@@ -18,8 +18,46 @@ def make_marking(encrypt_schema_doc, value):
     """
     Given the "encrypt" document of the JSON schema for a field and a BSON value, generate the FLE marking.
     """
-    pass
 
+    doc = {
+        "v": value,
+        "a": encrypt_schema_doc["algorithm"]
+    }
+
+    print(f"encrypt_schema_doc is {json_util.dumps(encrypt_schema_doc)}")
+    if version == "pre-spec":
+        doc["u"] = encrypt_schema_doc["keyVaultURI"]
+        if "keyId" in encrypt_schema_doc:
+            doc["k"] = encrypt_schema_doc["keyId"]
+        elif "keyAltName" in encrypt_schema_doc:
+            doc["k"] = encrypt_schema_doc["keyAltName"]
+    elif version == "spec":
+        doc["va"] = encrypt_schema_doc["keyVaultAlias"]
+        if "keyId" in encrypt_schema_doc:
+            doc["ki"] = encrypt_schema_doc["keyId"]
+        elif "keyAltName" in encrypt_schema_doc:
+            doc["ka"] = encrypt_schema_doc["keyAltName"]
+
+    if "iv" in encrypt_schema_doc:
+        doc["iv"] = encrypt_schema_doc["iv"]
+
+    data = bson.BSON.encode(doc, codec_options=bson.CodecOptions(uuid_representation=bson.binary.UUID_SUBTYPE))
+    """
+    Spec marking format is:
+    struct fle_blob {
+        uint8 fle_blob_subtype = 0;
+        uint8 bson[remainder];
+    }
+    """
+    if version == "pre-spec":
+        return bson.Binary(data, subtype=6)
+    else:
+        return bson.Binary(b"\x00" + data, subtype=6)
+
+def parse_marking(marking):
+    """For debugging and testing."""
+    return bson.BSON.decode(marking[1:])
+    
 
 def full_path(path_prefix, key):
     if path_prefix != "":
@@ -41,12 +79,17 @@ def build_encrypt_map(map, schema, path_prefix=""):
                 if "keyId" not in encrypt_spec and "keyAltName" not in encrypt_spec:
                     raise Exception(
                         "encrypt spec must have keyId or keyAltName: {}".format(encrypt_spec))
-                if "keyVaultURI" not in encrypt_spec:
-                    raise Exception(
-                        "encrypt spec must have keyVaultURI: {}".format(encrypt_spec))
                 if "algorithm" not in encrypt_spec:
                     raise Exception(
                         "encrypt spec must have algorithm: {}".format(encrypt_spec))
+                if version == "pre-spec":
+                    if "keyVaultURI" not in encrypt_spec:
+                        raise Exception(
+                            "encrypt spec must have keyVaultURI: {}".format(encrypt_spec))
+                elif version == "spec":
+                    if "keyVaultAlias" not in encrypt_spec:
+                        raise Exception(
+                            "encrypt spec must have keyVaultAlias: {}".format(encrypt_spec))
                 map[full_path(path_prefix, key)] = encrypt_spec
             elif "bsonType" in prop and prop["bsonType"] == "object":
                 build_encrypt_map(
@@ -60,25 +103,10 @@ def mark_recurse(doc, encrypt_map, path_prefix=""):
             print("processing {}".format(path))
             if path in encrypt_map:
                 print("  ENCRYPT")
-                # should be encrypted.
-                encrypt_spec = encrypt_map[path]
-                marking = {
-                    "v": doc[key],
-                    "a": encrypt_spec["algorithm"],
-                    "u": encrypt_spec["keyVaultURI"]
-                }
-                if "keyId" in encrypt_spec:
-                    marking["k"] = encrypt_map[path]["keyId"]
-                elif "keyAltName" in encrypt_spec:
-                    marking["k"] = encrypt_map[path]["keyAltName"]
-
-                if "iv" in encrypt_spec:
-                    marking["iv"] = encrypt_spec["iv"]
-
-                data = bson.BSON.encode(marking, codec_options=bson.CodecOptions(
-                    uuid_representation=bson.binary.UUID_SUBTYPE))
-                doc[key] = bson.Binary(data, subtype=6)
-
+                encrypt_schema_doc = encrypt_map[path]
+                print(f"encrypt_schema_doc={json_util.dumps(encrypt_schema_doc)}")
+                doc[key] = make_marking(encrypt_schema_doc, doc[key])
+                print("here")
             elif isinstance(doc[key], dict):
                 mark_recurse(doc[key], encrypt_map,
                              path_prefix=full_path(path_prefix, key))
@@ -105,6 +133,8 @@ def mark_fields(r):
         version = "spec"
     else:
         version = "pre-spec"
+
+    print(f"Using version={version}")
 
     if version == "pre-spec":
         try:
@@ -200,3 +230,6 @@ def main():
             start_server()
     else:
         start_server()
+
+if __name__ == "__main__":
+    start_server()
