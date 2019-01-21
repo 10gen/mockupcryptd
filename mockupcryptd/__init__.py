@@ -7,12 +7,6 @@ import bson
 from mockupdb import interactive_server
 from  bson import json_util
 
-version = "pre-spec"
-# The "pre-spec" version:
-# - markings were just BSON documents.
-# - schemas had a URI instead of an alias.
-#
-# The "spec" version is the latest described in the drivers spec.
 
 def make_marking(encrypt_schema_doc, value):
     """
@@ -25,18 +19,11 @@ def make_marking(encrypt_schema_doc, value):
     }
 
     print(f"encrypt_schema_doc is {json_util.dumps(encrypt_schema_doc)}")
-    if version == "pre-spec":
-        doc["u"] = encrypt_schema_doc["keyVaultURI"]
-        if "keyId" in encrypt_schema_doc:
-            doc["k"] = encrypt_schema_doc["keyId"]
-        elif "keyAltName" in encrypt_schema_doc:
-            doc["k"] = encrypt_schema_doc["keyAltName"]
-    elif version == "spec":
-        doc["va"] = encrypt_schema_doc["keyVaultAlias"]
-        if "keyId" in encrypt_schema_doc:
-            doc["ki"] = encrypt_schema_doc["keyId"]
-        elif "keyAltName" in encrypt_schema_doc:
-            doc["ka"] = encrypt_schema_doc["keyAltName"]
+    doc["va"] = encrypt_schema_doc["keyVaultAlias"]
+    if "keyId" in encrypt_schema_doc:
+        doc["ki"] = encrypt_schema_doc["keyId"]
+    elif "keyAltName" in encrypt_schema_doc:
+        doc["ka"] = encrypt_schema_doc["keyAltName"]
 
     if "iv" in encrypt_schema_doc:
         doc["iv"] = encrypt_schema_doc["iv"]
@@ -49,10 +36,7 @@ def make_marking(encrypt_schema_doc, value):
         uint8 bson[remainder];
     }
     """
-    if version == "pre-spec":
-        return bson.Binary(data, subtype=6)
-    else:
-        return bson.Binary(b"\x00" + data, subtype=6)
+    return bson.Binary(b"\x00" + data, subtype=6)
 
 def parse_marking(marking):
     """For debugging and testing."""
@@ -82,14 +66,9 @@ def build_encrypt_map(map, schema, path_prefix=""):
                 if "algorithm" not in encrypt_spec:
                     raise Exception(
                         "encrypt spec must have algorithm: {}".format(encrypt_spec))
-                if version == "pre-spec":
-                    if "keyVaultURI" not in encrypt_spec:
-                        raise Exception(
-                            "encrypt spec must have keyVaultURI: {}".format(encrypt_spec))
-                elif version == "spec":
-                    if "keyVaultAlias" not in encrypt_spec:
-                        raise Exception(
-                            "encrypt spec must have keyVaultAlias: {}".format(encrypt_spec))
+                if "keyVaultAlias" not in encrypt_spec:
+                    raise Exception(
+                        "encrypt spec must have keyVaultAlias: {}".format(encrypt_spec))
                 map[full_path(path_prefix, key)] = encrypt_spec
             elif "bsonType" in prop and prop["bsonType"] == "object":
                 build_encrypt_map(
@@ -129,55 +108,49 @@ def mark_recurse(doc, encrypt_map, path_prefix=""):
 
 def mark_fields(r):
     global version
-    if "jsonSchema" in r.doc:
-        version = "spec"
-    else:
-        version = "pre-spec"
 
-    print(f"Using version={version}")
+    reply = {
+        "hasEncryptedFields": True,
+        "result": {}
+    }
 
-    if version == "pre-spec":
-        try:
-            data = r.doc['data']
-            schema = r.doc['schema']
-        except KeyError as exc:
-            r.command_err(errmsg="Missing argument {}".format(exc))
-            return
-        if not isinstance(data, list):
-            r.command_err(errmsg="'data' must be array of documents")
-            return
-    elif version == "spec":
-        data = r.doc.copy()
-        del data["jsonSchema"]
-
+    original_command = r.doc.copy()
+    schema = original_command["jsonSchema"]
+    del original_command["jsonSchema"]
 
     encrypt_map = {}
     build_encrypt_map(encrypt_map, schema)
     print("Encrypt map:", encrypt_map)
 
-    if version == "pre-spec":
+    if r.command_name == "find":
         try:
-            for doc in data:
+            mark_recurse(original_command["filter"], encrypt_map)
+        except Exception as e:
+            r.command_err(errmsg=str(e))
+            return
+        reply["result"] = original_command
+    elif r.command_name == "insert":
+        try:
+            for doc in original_command["documents"]:
                 mark_recurse(doc, encrypt_map)
-                print("result={}".format(doc))
         except Exception as e:
             r.command_err(errmsg=str(e))
             return
-    elif version == "spec":
-        try:
-            mark_recurse(data, encrypt_map)
-            print("result={}".format(doc))
-        except Exception as e:
-            r.command_err(errmsg=str(e))
-            return
+        reply["result"] = original_command
 
-    r.ok(data=data)
+    r.ok(data=reply)
 
 
 def start_server():
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    verbose = False
+    if "MOCKUPCRYPTD_DEBUG" in os.environ:
+        verbose = True
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    else:
+        logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
+    
     uds_path = '/tmp/mongocryptd.sock'
-    server = interactive_server(uds_path=uds_path, name='mockupcryptd')
+    server = interactive_server(uds_path=uds_path, name='mockupcryptd', verbose=verbose)
     server.run()
     print('Listening with domain socket %s' % (uds_path,))
     print('URI is %s' % (server.uri,))
@@ -186,10 +159,8 @@ def start_server():
         # Process each request.
         for r in server:
             try:
-                if r.command_name == 'markFields':
+                if r.command_name in [ "find", "insert" ]:
                     mark_fields(r)
-                elif r.command_name == 'hasEncryptedFields':
-                    pass  # TODO
                 elif r.command_name == 'shutdown':
                     return
                 else:
