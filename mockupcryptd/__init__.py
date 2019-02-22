@@ -18,8 +18,7 @@ def make_marking(encrypt_schema_doc, value):
         "a": encrypt_schema_doc["algorithm"]
     }
 
-    print(f"encrypt_schema_doc is {json_util.dumps(encrypt_schema_doc)}")
-    doc["va"] = encrypt_schema_doc["keyVaultAlias"]
+    print("encrypt_schema_doc is {}".format(json_util.dumps(encrypt_schema_doc)))
     if "keyId" in encrypt_schema_doc:
         doc["ki"] = encrypt_schema_doc["keyId"]
     elif "keyAltName" in encrypt_schema_doc:
@@ -66,9 +65,6 @@ def build_encrypt_map(map, schema, path_prefix=""):
                 if "algorithm" not in encrypt_spec:
                     raise Exception(
                         "encrypt spec must have algorithm: {}".format(encrypt_spec))
-                if "keyVaultAlias" not in encrypt_spec:
-                    raise Exception(
-                        "encrypt spec must have keyVaultAlias: {}".format(encrypt_spec))
                 map[full_path(path_prefix, key)] = encrypt_spec
             elif "bsonType" in prop and prop["bsonType"] == "object":
                 build_encrypt_map(
@@ -83,7 +79,7 @@ def mark_recurse(doc, encrypt_map, path_prefix=""):
             if path in encrypt_map:
                 print("  ENCRYPT")
                 encrypt_schema_doc = encrypt_map[path]
-                print(f"encrypt_schema_doc={json_util.dumps(encrypt_schema_doc)}")
+                print("encrypt_schema_doc={}".format(json_util.dumps(encrypt_schema_doc)))
                 doc[key] = make_marking(encrypt_schema_doc, doc[key])
                 print("here")
             elif isinstance(doc[key], dict):
@@ -107,10 +103,8 @@ def mark_recurse(doc, encrypt_map, path_prefix=""):
 
 
 def mark_fields(r):
-    global version
-
     reply = {
-        "hasEncryptedFields": True,
+        "hasEncryptedPlaceholders": True,
         "result": {}
     }
 
@@ -138,7 +132,7 @@ def mark_fields(r):
             return
         reply["result"] = original_command
 
-    r.ok(data=reply)
+    r.ok(reply)
 
 
 def start_server():
