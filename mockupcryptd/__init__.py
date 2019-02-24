@@ -148,7 +148,11 @@ def start_server():
     server.run()
     print('Listening with domain socket %s' % (uds_path,))
     print('URI is %s' % (server.uri,))
-
+    # TODO: Oddly, redirecting mockupcryptd's stdout won't flush
+    # when mockupcryptd is run in the background. I.e. `mockupcryptd > out.txt &`
+    # won't write anything to out.txt. But remove the `&` and it does flush.
+    # For now, just flush frequently.
+    sys.stdout.flush()
     try:
         # Process each request.
         for r in server:
@@ -160,6 +164,7 @@ def start_server():
                 else:
                     r.command_err(
                         errmsg='Unrecognized request: {r}'.format(r=r))
+                sys.stdout.flush()
             except Exception as exc:
                 logging.exception('Processing %s' % (r,))
                 r.command_err(
